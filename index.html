@@ -355,7 +355,7 @@ try {
   selectedState = localStorage.getItem(KEY_STATE) || 'HH';
   vacationDays  = JSON.parse(localStorage.getItem(KEY_DAYS) || '{}') || {};
   balanceData   = JSON.parse(localStorage.getItem(KEY_BAL)  || 'null');
-  annualDays    = parseInt(localStorage.getItem(KEY_ANNUAL) || '33', 10) || 33;
+  annualDays    = parseInt(localStorage.getItem(KEY_ANNUAL) || '25', 10) || 25;
 } catch (e) {
   console.warn('localStorage unavailable:', e);
 }
@@ -776,7 +776,7 @@ function getAppData() {
 function loadAppData(data) {
   if (!data || data.version !== 1) { toast('Unbekanntes Dateiformat'); return; }
   selectedState = data.selectedState || 'HH';
-  annualDays    = data.annualDays    || 33;
+  annualDays    = data.annualDays    || 25;
   vacationDays  = data.vacationDays  || {};
   balanceData   = data.balanceData   || null;
   document.getElementById('stateSelect').value = selectedState;
