@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Urlaubsmanager</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f2f2f7;
+      color: #1c1c1e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1c1c1e;
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    header h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
+
+    .state-select {
+      background: #2c2c2e;
+      color: #fff;
+      border: 1px solid #48484a;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .period-badge { font-size: 12px; color: #8e8e93; white-space: nowrap; }
+
+    .main { max-width: 1440px; margin: 0 auto; padding: 20px 24px 40px; }
+
+    /* Balance Cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .card-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: #8e8e93;
+      margin-bottom: 6px;
+    }
+    .card-value { font-size: 32px; font-weight: 700; line-height: 1; }
+    .card-sub { font-size: 12px; color: #8e8e93; margin-top: 4px; }
+    .card.orange .card-value { color: #ff9500; }
+    .card.blue   .card-value { color: #007aff; }
+    .card.purple .card-value { color: #af52de; }
+
+    .card.taken-warn .card-value { color: #ff3b30 !important; }
+    .card.taken-warn .card-label { color: #ff3b30; }
+    .card.taken-warn .card-sub   { color: #ff3b30; font-weight: 600; }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .year-nav { display: flex; align-items: center; gap: 10px; }
+    .nav-btn {
+      background: #fff;
+      border: 1px solid #d1d1d6;
+      border-radius: 8px;
+      width: 34px; height: 34px;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-btn:hover { background: #e5e5ea; }
+    .year-label { font-size: 22px; font-weight: 700; min-width: 72px; text-align: center; }
+
+    .controls-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    .legend { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #3c3c43; }
+    .ld { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; }
+    .ld-taken   { background: #ff9500; }
+    .ld-planned { background: #007aff; }
+    .ld-holiday { background: #ffe4e4; border: 1px solid #ffb3b3; }
+    .ld-today   { background: transparent; border: 2px solid #007aff; }
+
+    .click-hint {
+      font-size: 11px; color: #aeaeb2;
+      background: #e5e5ea; border-radius: 8px; padding: 5px 10px;
+    }
+
+    .upload-btn {
+      background: #007aff; color: #fff;
+      border: none; border-radius: 10px;
+      padding: 9px 18px; font-size: 13px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+    }
+    .upload-btn:hover { background: #0071e3; }
+
+    .sec-btn {
+      background: #e5e5ea; color: #1c1c1e;
+      border: none; border-radius: 10px;
+      padding: 9px 14px; font-size: 13px; font-weight: 500;
+      cursor: pointer; white-space: nowrap;
+    }
+    .sec-btn:hover { background: #d1d1d6; }
+
+    .storage-indicator {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: #8e8e93;
+      background: #e5e5ea; border-radius: 8px;
+      padding: 6px 10px; white-space: nowrap;
+    }
+    .storage-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .storage-dot.file   { background: #34c759; }
+    .storage-dot.local  { background: #ff9500; }
+
+    /* Calendar */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 1100px) { .cal-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 750px)  { .cal-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .month-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .month-name { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+
+    .dow-row, .week-row { display: grid; grid-template-columns: repeat(7, 1fr); }
+
+    .dow-cell {
+      text-align: center;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .3px;
+      color: #aeaeb2; padding-bottom: 4px;
+    }
+    .dow-cell.we { color: #ff3b30; }
+
+    .day-cell {
+      aspect-ratio: 1;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      border-radius: 50%;
+      position: relative;
+      transition: background .1s;
+      user-select: none;
+    }
+
+    .day-cell.workday { cursor: pointer; }
+    .day-cell.workday:hover { background: #e5f0ff; }
+    .day-cell.past-locked { cursor: not-allowed; opacity: .45; }
+
+    .day-cell.today { box-shadow: inset 0 0 0 2px #007aff; font-weight: 700; }
+
+    .day-cell.holiday { background: #ffe4e4 !important; color: #ff3b30; cursor: default; }
+    .day-cell.weekend { color: #ff3b30; }
+
+    .day-cell.taken   { background: #ff9500 !important; color: #fff !important; cursor: pointer; }
+    .day-cell.taken:hover  { background: #e08600 !important; }
+    .day-cell.planned { background: #007aff !important; color: #fff !important; cursor: pointer; }
+    .day-cell.planned:hover { background: #0065d9 !important; }
+
+    /* Tooltip for holidays */
+    .day-cell[data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,.82);
+      color: #fff;
+      padding: 3px 8px; border-radius: 6px;
+      font-size: 11px; white-space: nowrap;
+      pointer-events: none; z-index: 100;
+    }
+
+    #toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: #1c1c1e; color: #fff;
+      padding: 11px 22px; border-radius: 20px;
+      font-size: 14px; font-weight: 500;
+      opacity: 0;
+      transition: transform .25s ease, opacity .25s ease;
+      z-index: 200; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #fileInput { display: none; }
+
+    .datenbasis {
+      margin-top: 16px;
+      padding: 10px 16px;
+      background: #fff;
+      border-radius: 10px;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 11px;
+      color: #8e8e93;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      line-height: 1.8;
+      word-break: break-word;
+    }
+    .datenbasis strong { color: #3c3c43; }
+    .datenbasis .db-sep { margin: 0 8px; color: #d1d1d6; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Urlaubsmanager</h1>
+    <select class="state-select" id="stateSelect" onchange="onStateChange()">
+      <option value="HH">Hamburg</option>
+      <option value="BW">Baden-Württemberg</option>
+      <option value="BY">Bayern</option>
+      <option value="BE">Berlin</option>
+      <option value="BB">Brandenburg</option>
+      <option value="HB">Bremen</option>
+      <option value="HE">Hessen</option>
+      <option value="MV">Mecklenburg-Vorpommern</option>
+      <option value="NI">Niedersachsen</option>
+      <option value="NW">Nordrhein-Westfalen</option>
+      <option value="RP">Rheinland-Pfalz</option>
+      <option value="SL">Saarland</option>
+      <option value="SN">Sachsen</option>
+      <option value="ST">Sachsen-Anhalt</option>
+      <option value="SH">Schleswig-Holstein</option>
+      <option value="TH">Thüringen</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#8e8e93;white-space:nowrap;">
+      Jahresurlaub
+      <input type="number" id="annualDays" min="1" max="60" value="33"
+        style="width:52px;background:#2c2c2e;color:#fff;border:1px solid #48484a;
+               border-radius:8px;padding:5px 8px;font-size:14px;font-weight:600;text-align:center;"
+        onchange="onAnnualChange()" oninput="onAnnualChange()">
+      Tage/Jahr
+    </label>
+  </div>
+  <div id="periodBadge" class="period-badge"></div>
+</header>
+
+<div class="main">
+
+  <div class="cards">
+    <div class="card" style="border-left: 4px solid #ff3b30;">
+      <div class="card-label">Noch einzuplanen bis 31.12.</div>
+      <div class="card-value" id="remainVacation" style="color:#ff3b30;">–</div>
+      <div class="card-sub" id="remainVacationSub">Bericht hochladen</div>
+    </div>
+    <div class="card" style="border-left: 4px solid #ff6b00;">
+      <div class="card-label">Übertrag Vorjahr</div>
+      <div class="card-value" id="carryoverDays" style="color:#ff6b00;">–</div>
+      <div class="card-sub" id="carryoverHours">Bericht hochladen</div>
+    </div>
+    <div class="card orange" id="takenCard">
+      <div class="card-label">Genommen (CYTD)</div>
+      <div class="card-value" id="takenDays">–</div>
+      <div class="card-sub" id="takenHours">Bericht hochladen</div>
+    </div>
+    <div class="card blue">
+      <div class="card-label">Geplant (dieses Jahr)</div>
+      <div class="card-value" id="plannedDays">0</div>
+      <div class="card-sub">Arbeitstage eingetragen</div>
+    </div>
+    <div class="card purple">
+      <div class="card-label">Überstunden</div>
+      <div class="card-value" id="otDays">–</div>
+      <div class="card-sub" id="otHours">Bericht hochladen</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="year-nav">
+      <button class="nav-btn" onclick="changeYear(-1)">&#8249;</button>
+      <div class="year-label" id="yearLabel"></div>
+      <button class="nav-btn" onclick="changeYear(1)">&#8250;</button>
+    </div>
+    <div class="controls-right">
+      <div class="legend">
+        <div class="legend-item"><div class="ld ld-taken"></div>Genommen</div>
+        <div class="legend-item"><div class="ld ld-planned"></div>Geplant</div>
+        <div class="legend-item"><div class="ld ld-holiday"></div>Feiertag</div>
+        <div class="legend-item" style="color:#ff3b30;font-weight:700;">Sa/So</div>
+        <div class="legend-item"><div class="ld ld-today"></div>Heute</div>
+      </div>
+      <div class="click-hint">Vergangenheit: genommen &harr; leer &nbsp;|&nbsp; Zukunft: geplant &harr; leer</div>
+      <div id="storageIndicator" class="storage-indicator">
+        <div class="storage-dot local"></div>
+        <span id="storageLabel">localStorage</span>
+      </div>
+      <button class="sec-btn" id="linkFileBtn" onclick="linkFile()" style="display:none">&#128279; Datei verknüpfen</button>
+      <button class="sec-btn" onclick="exportData()">&#8595; Export</button>
+      <input type="file" id="importInput" accept=".json" onchange="importData(event)" style="display:none">
+      <button class="sec-btn" onclick="document.getElementById('importInput').click()">&#8593; Import</button>
+      <input type="file" id="fileInput" accept=".htm,.html" onchange="handleFile(event)">
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        &#8679; Accenture-Bericht
+      </button>
+    </div>
+  </div>
+
+  <div class="cal-grid" id="calGrid"></div>
+  <div id="datenbasis" class="datenbasis" style="display:none"></div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Persistence keys ──────────────────────────────────────────────────────
+const KEY_DAYS   = 'urlmgr_days';
+const KEY_BAL    = 'urlmgr_balance';
+const KEY_STATE  = 'urlmgr_state';
+const KEY_ANNUAL = 'urlmgr_annual';
+
+// ── App state (safe defaults first, then try to load from storage) ─────────
+let currentYear   = new Date().getFullYear();
+let selectedState = 'HH';
+let vacationDays  = {};
+let balanceData   = null;
+let annualDays    = 33;
+let takenLocked   = false; // true when calendar taken days >= report taken days
+
+try {
+  selectedState = localStorage.getItem(KEY_STATE) || 'HH';
+  vacationDays  = JSON.parse(localStorage.getItem(KEY_DAYS) || '{}') || {};
+  balanceData   = JSON.parse(localStorage.getItem(KEY_BAL)  || 'null');
+  annualDays    = parseInt(localStorage.getItem(KEY_ANNUAL) || '33', 10) || 33;
+} catch (e) {
+  console.warn('localStorage unavailable:', e);
+}
+
+const MONTHS = ['Januar','Februar','März','April','Mai','Juni',
+                'Juli','August','September','Oktober','November','Dezember'];
+const DOWS   = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+document.getElementById('stateSelect').value = selectedState;
+document.getElementById('annualDays').value  = annualDays;
+render();
+tryRestoreFileHandle();
+
+// ── Easter (Anonymous Gregorian algorithm) ────────────────────────────────
+function easter(Y) {
+  const a=Y%19, b=Math.floor(Y/100), c=Y%100;
+  const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
+  const g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const month=Math.floor((h+l-7*m+114)/31);
+  const day=((h+l-7*m+114)%31)+1;
+  return new Date(Y, month-1, day);
+}
+
+// ── German public holidays ────────────────────────────────────────────────
+function getHolidays(year, state) {
+  const h = {};
+  const E = easter(year);
+
+  function add(d, name) {
+    if (!d || isNaN(+d)) return;
+    h[dk(d)] = name;
+  }
+  function fixed(mo, day, name) { add(new Date(year, mo-1, day), name); }
+  function rel(offset, name) {
+    const d = new Date(E); d.setDate(d.getDate() + offset); add(d, name);
+  }
+
+  // All Länder
+  fixed(1, 1,  'Neujahr');
+  rel(-2,      'Karfreitag');
+  rel(1,       'Ostermontag');
+  fixed(5, 1,  'Tag der Arbeit');
+  rel(39,      'Christi Himmelfahrt');
+  rel(50,      'Pfingstmontag');
+  fixed(10, 3, 'Tag der deutschen Einheit');
+  fixed(12,25, '1. Weihnachtstag');
+  fixed(12,26, '2. Weihnachtstag');
+
+  // State-specific
+  const s = state;
+  if (['BW','BY','ST'].includes(s))               fixed(1,6,'Heilige Drei Könige');
+  if (['BE','BB','MV'].includes(s))               fixed(3,8,'Internationaler Frauentag');
+  if (['BW','BY','HE','NW','RP','SL','SN','TH'].includes(s)) rel(60,'Fronleichnam');
+  if (['BY','SL'].includes(s))                    fixed(8,15,'Mariä Himmelfahrt');
+  if (['BB','HB','HH','MV','NI','SH','SN','ST','TH'].includes(s)) fixed(10,31,'Reformationstag');
+  if (['BW','BY','NW','RP','SL'].includes(s))     fixed(11,1,'Allerheiligen');
+  if (s === 'SN')                                 add(bussUndBettag(year),'Buß- und Bettag');
+  if (s === 'TH' && year >= 2019)                 fixed(9,20,'Weltkindertag');
+
+  // Accenture company-wide free days (every year)
+  fixed(12, 24, 'Accenture frei');
+  fixed(12, 31, 'Accenture frei');
+
+  return h;
+}
+
+function bussUndBettag(year) {
+  // Wednesday before Nov 23 (inclusive)
+  const d = new Date(year, 10, 23);
+  const dow = d.getDay(); // 0=Sun … 6=Sat
+  const back = dow === 3 ? 0 : (dow < 3 ? dow + 4 : dow - 3);
+  d.setDate(d.getDate() - back);
+  return d;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function dk(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function pad(n)  { return String(n).padStart(2,'0'); }
+function todayKey() { return dk(new Date()); }
+function isWE(d) { const w = d.getDay(); return w===0||w===6; }
+function round1(n) { return Math.round(n*10)/10; }
+
+// ── Render ────────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('yearLabel').textContent = currentYear;
+  const holidays = getHolidays(currentYear, selectedState);
+
+  // Lock past-day clicks when calendar matches report taken count
+  takenLocked = false;
+  const ry = reportYear();
+  if (balanceData && balanceData.vacationHoursTakenCYTD != null && currentYear === ry) {
+    const reportTaken = round1((balanceData.vacationHoursTakenCYTD) / 8);
+    const calTaken    = countDays(currentYear, 'taken', holidays);
+    if (calTaken >= reportTaken) takenLocked = true;
+  }
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  for (let m = 0; m < 12; m++) grid.appendChild(buildMonth(currentYear, m, holidays));
+  updateCards(holidays);
+}
+
+function buildMonth(year, month, holidays) {
+  const wrap = el('div', 'month-card');
+  wrap.appendChild(el('div', 'month-name', MONTHS[month]));
+
+  // Day-of-week headers
+  const dowr = el('div', 'dow-row');
+  DOWS.forEach((n,i) => dowr.appendChild(el('div', 'dow-cell'+(i>=5?' we':''), n)));
+  wrap.appendChild(dowr);
+
+  // First column offset (Mon=0 … Sun=6)
+  let startDow = new Date(year, month, 1).getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const today = todayKey();
+  let dayNum = 1 - startDow;
+
+  while (dayNum <= daysInMonth) {
+    const row = el('div', 'week-row');
+    for (let col=0; col<7; col++, dayNum++) {
+      let cell;
+      if (dayNum < 1 || dayNum > daysInMonth) {
+        cell = el('div', 'day-cell');
+      } else {
+        const d   = new Date(year, month, dayNum);
+        const key = dk(d);
+        const hol = holidays[key];
+        const we  = isWE(d);
+        const vs  = vacationDays[key];
+
+        cell = el('div', 'day-cell', String(dayNum));
+
+        if (hol) {
+          cell.classList.add('holiday');
+          cell.setAttribute('data-tip', hol);
+        } else if (we) {
+          cell.classList.add('weekend');
+        } else {
+          cell.classList.add('workday');
+          const isPast = key <= todayKey();
+          if (takenLocked && isPast && !vs) {
+            cell.classList.add('past-locked');
+          } else {
+            cell.addEventListener('click', () => toggleDay(key));
+          }
+        }
+        if (vs === 'taken')   cell.classList.add('taken');
+        if (vs === 'planned') cell.classList.add('planned');
+        if (key === today)    cell.classList.add('today');
+      }
+      row.appendChild(cell);
+    }
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls)  e.className = cls;
+  if (text) e.textContent = text;
+  return e;
+}
+
+function toggleDay(key) {
+  const isFuture = key > todayKey();
+  const cur = vacationDays[key];
+  if (!cur) {
+    vacationDays[key] = isFuture ? 'planned' : 'taken';
+  } else {
+    delete vacationDays[key];
+  }
+  try { localStorage.setItem(KEY_DAYS, JSON.stringify(vacationDays)); } catch(e) {}
+  render();
+  writeToFile();
+}
+
+// ── Year-balance computation (carries over remaining days across years) ────
+function countDays(year, type, holidays) {
+  const hols = holidays || getHolidays(year, selectedState);
+  let n = 0;
+  for (const [k, s] of Object.entries(vacationDays)) {
+    if (s === type && k.startsWith(year + '-') && !isWE(new Date(k)) && !hols[k]) n++;
+  }
+  return n;
+}
+
+function reportYear() {
+  return balanceData && balanceData.periodEndDate
+    ? parseInt(balanceData.periodEndDate.split('-')[0], 10)
+    : null;
+}
+
+// Returns { carryover, total, planned, taken, remaining } for any year, or null if no data
+function computeYearBalance(targetYear, holidayCache) {
+  if (!balanceData || balanceData.endingBalanceHours == null) return null;
+
+  const ry = reportYear();
+  if (targetYear < ry) return null; // before report — can't project backwards
+
+  const holiRY = getHolidays(ry, selectedState);
+  const accruedCYTD    = balanceData.vacationHoursAddedCYTD ?? 0;
+  const futureAccruals = Math.max(0, annualDays * 8 - accruedCYTD);
+  const totalRY        = round1((balanceData.endingBalanceHours + futureAccruals) / 8);
+  const plannedRY      = countDays(ry, 'planned', holiRY);
+  const remainingRY    = round1(totalRY - plannedRY);
+  const carryoverRY    = round1((balanceData.balanceFromLastYear ?? 0) / 8);
+
+  if (targetYear === ry) {
+    return {
+      carryover: carryoverRY,
+      total:     totalRY,
+      planned:   plannedRY,
+      taken:     countDays(ry, 'taken', holiRY),
+      remaining: remainingRY,
+      isReportYear: true,
+    };
+  }
+
+  // Propagate forward year by year
+  let prev = remainingRY;
+  for (let y = ry + 1; y <= targetYear; y++) {
+    const hols    = y === targetYear ? (holidayCache || getHolidays(y, selectedState)) : getHolidays(y, selectedState);
+    const carry   = prev;
+    const total   = round1(carry + annualDays);
+    const planned = countDays(y, 'planned', hols);
+    const taken   = countDays(y, 'taken', hols);
+    const rem     = round1(total - planned);
+    if (y === targetYear) {
+      return { carryover: carry, total, planned, taken, remaining: rem, isReportYear: false };
+    }
+    prev = rem;
+  }
+  return null;
+}
+
+// ── Balance Cards ─────────────────────────────────────────────────────────
+function updateCards(holidays) {
+  const bal = computeYearBalance(currentYear, holidays);
+
+  // Planned / taken counts for current year
+  const planned = bal ? bal.planned : countDays(currentYear, 'planned', holidays);
+  const taken   = bal ? bal.taken   : countDays(currentYear, 'taken',   holidays);
+  document.getElementById('plannedDays').textContent = planned;
+
+  if (bal) {
+    // Noch einzuplanen
+    set('remainVacation', bal.remaining);
+    const remEl = document.getElementById('remainVacation');
+    remEl.style.color = bal.remaining <= 0 ? '#34c759' : '#ff3b30';
+
+    if (bal.isReportYear) {
+      const cur = balanceData.endingBalanceHours;
+      const fa  = Math.max(0, annualDays * 8 - (balanceData.vacationHoursAddedCYTD ?? 0));
+      set('remainVacationSub', `(${cur}h + ${fa}h) / 8 − ${planned} geplant`);
+    } else {
+      set('remainVacationSub', `${bal.carryover} Vorjahr + ${annualDays} Jahresurlaub − ${planned} geplant`);
+    }
+
+    // Übertrag Vorjahr
+    set('carryoverDays',  bal.carryover);
+    set('carryoverHours', bal.isReportYear
+      ? (balanceData.balanceFromLastYear ?? 0) + ' Stunden Übertrag'
+      : `Resttage aus ${currentYear - 1}`);
+
+    // Genommen CYTD — calendar is source of truth; red if report says more than calendar shows
+    const takenCard = document.getElementById('takenCard');
+    takenCard.classList.remove('taken-warn');
+    if (bal.isReportYear) {
+      const reportTaken = round1((balanceData.vacationHoursTakenCYTD ?? 0) / 8);
+      const diff = round1(reportTaken - taken);
+      set('takenDays', taken);
+      if (diff > 0) {
+        set('takenHours', `⚠ ${diff} Tage lt. Bericht nicht markiert`);
+        takenCard.classList.add('taken-warn');
+      } else {
+        set('takenHours', `lt. Bericht: ${reportTaken} Tage`);
+      }
+    } else {
+      set('takenDays',  taken);
+      set('takenHours', taken + ' Tage im Kalender');
+    }
+
+    // Überstunden (always from report)
+    const oh = balanceData.overtimeEndingBalance ?? 0;
+    set('otDays',  round1(oh / 8));
+    set('otHours', oh + ' Stunden');
+
+    if (balanceData.periodEndDate) {
+      const [y,m,d] = balanceData.periodEndDate.split('-');
+      document.getElementById('periodBadge').textContent = `Stand: ${d}.${m}.${y}`;
+    }
+  } else {
+    // No data at all
+    set('remainVacation',    '–');
+    set('remainVacationSub', balanceData ? `Kein Bericht für ${currentYear}` : 'Bericht hochladen');
+    set('carryoverDays',  '–');
+    set('carryoverHours', 'Bericht hochladen');
+    set('takenDays','–'); set('takenHours','Bericht hochladen');
+    document.getElementById('takenCard').classList.remove('taken-warn');
+    set('otDays',   '–'); set('otHours',   'Bericht hochladen');
+  }
+
+  updateDatenbasis();
+}
+function set(id, val) { document.getElementById(id).textContent = val; }
+
+// ── Datenbasis Panel ──────────────────────────────────────────────────────
+function updateDatenbasis() {
+  const panel = document.getElementById('datenbasis');
+  if (!balanceData) { panel.style.display = 'none'; return; }
+  const { periodEndDate, endingBalanceHours, vacationHoursTakenCYTD,
+          vacationHoursAddedCYTD, balanceFromLastYear, overtimeEndingBalance } = balanceData;
+  const fmt = v => v != null ? v + ' h' : '–';
+  let dateStr = '–';
+  if (periodEndDate) {
+    const [y,m,d] = periodEndDate.split('-');
+    dateStr = `${d}.${m}.${y}`;
+  }
+  const sep = ' <span class="db-sep">|</span> ';
+  panel.style.display = '';
+  panel.innerHTML =
+    `<strong>Datenbasis: Stand ${dateStr}</strong>${sep}` +
+    `Ending Balance: <strong>${fmt(endingBalanceHours)}</strong>${sep}` +
+    `Taken CYTD: <strong>${fmt(vacationHoursTakenCYTD)}</strong>${sep}` +
+    `Added CYTD: <strong>+${fmt(vacationHoursAddedCYTD)}</strong>${sep}` +
+    `Vorjahr: <strong>${fmt(balanceFromLastYear)}</strong>${sep}` +
+    `Overtime Balance: <strong>${fmt(overtimeEndingBalance)}</strong>`;
+}
+
+// ── Accenture Report Parser ───────────────────────────────────────────────
+function parseAccentureReport(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+
+  // Each <nobr id="lLLLLCCC"> belongs to line LLLL, column CCC
+  const lines = {};
+  doc.querySelectorAll('nobr[id]').forEach(el => {
+    const m = el.id.match(/^l(\d{4})(\d{3})$/);
+    if (!m) return;
+    const line = +m[1], pos = +m[2];
+    (lines[line] = lines[line] || []).push({
+      pos,
+      text: el.textContent.replace(/ /g, ' ')
+    });
+  });
+
+  const fullText = Object.entries(lines)
+    .sort(([a],[b]) => +a - +b)
+    .map(([, parts]) => parts.sort((a,b)=>a.pos-b.pos).map(p=>p.text).join(''))
+    .join('\n');
+
+  // Match a number that may carry +/- sign
+  function num(re) {
+    const m = fullText.match(re);
+    return m ? parseFloat(m[1]) : null;
+  }
+  // Match and return absolute value (fields like "Taken" are already meaningful as positive)
+  function abs(re) {
+    const v = num(re);
+    return v == null ? null : Math.abs(v);
+  }
+
+  // Period end date (DD.MM.YYYY)
+  let periodEndDate = null;
+  const dm = fullText.match(/Period\s+end\s+date:\s*(\d{2})\.(\d{2})\.(\d{4})/);
+  if (dm) periodEndDate = `${dm[3]}-${dm[2]}-${dm[1]}`;
+
+  return {
+    periodEndDate,
+    // Vacation ending balance — may be negative (deficit), keep sign
+    endingBalanceHours:     num(/Ending\s+(?:Vacation\s+)?Balance\s+(?:from\s+last\s+period\s+)?Hours?\s+([+-]?[\d.]+)/i)
+                         ?? num(/CYTD\s+Ending\s+Vacation\s+Hours\s+Balance\s+([+-]?[\d.]+)/i),
+    vacationHoursTakenCYTD: abs(/Vacation\s+Hours\s+Taken\s+CYTD\s+([+-]?[\d.]+)/i),
+    vacationHoursAddedCYTD: abs(/Vacation\s+Hours\s+[Aa]dded?\s+CYTD\s+([+-]?[\d.]+)/i),
+    balanceFromLastYear:    num(/Balance\s+From\s+End\s+Of\s+Last\s+Year\s+([+-]?[\d.]+)/i),
+    // Overtime CYTD ending balance (right-column label, no "Vacation" in name)
+    overtimeEndingBalance:  num(/CYTD\s+Ending\s+Balance\s+Hours\s+([+-]?[\d.]+)/i),
+  };
+}
+
+// ── File Handling ─────────────────────────────────────────────────────────
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try {
+      const data = parseAccentureReport(ev.target.result);
+      if (!data.periodEndDate && data.endingBalanceHours === null) {
+        toast('Kein Urlaubssaldo gefunden – richtiges Dokument?');
+        return;
+      }
+      balanceData = data;
+      try { localStorage.setItem(KEY_BAL, JSON.stringify(data)); } catch(e) {}
+      render();
+      await writeToFile();
+      toast('Bericht importiert ✓');
+    } catch (err) {
+      toast('Fehler: ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+  e.target.value = '';
+}
+
+// ── Data serialization ────────────────────────────────────────────────────
+function getAppData() {
+  return { version: 1, exportedAt: new Date().toISOString(),
+           selectedState, annualDays, vacationDays, balanceData };
+}
+
+function loadAppData(data) {
+  if (!data || data.version !== 1) { toast('Unbekanntes Dateiformat'); return; }
+  selectedState = data.selectedState || 'HH';
+  annualDays    = data.annualDays    || 33;
+  vacationDays  = data.vacationDays  || {};
+  balanceData   = data.balanceData   || null;
+  document.getElementById('stateSelect').value = selectedState;
+  document.getElementById('annualDays').value  = annualDays;
+  try {
+    localStorage.setItem(KEY_STATE,  selectedState);
+    localStorage.setItem(KEY_ANNUAL, annualDays);
+    localStorage.setItem(KEY_DAYS,   JSON.stringify(vacationDays));
+    localStorage.setItem(KEY_BAL,    JSON.stringify(balanceData));
+  } catch(e) {}
+  render();
+}
+
+// ── IndexedDB (stores File System file handle across sessions) ────────────
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('urlaubsmanager', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = reject;
+  });
+}
+async function idbPut(key, val) {
+  const db = await openIDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(val, key);
+    tx.oncomplete = res; tx.onerror = rej;
+  });
+}
+async function idbGet(key) {
+  const db = await openIDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction('handles', 'readonly');
+    const req = tx.objectStore('handles').get(key);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = rej;
+  });
+}
+
+// ── File System Access API ────────────────────────────────────────────────
+let fileHandle = null;
+
+async function tryRestoreFileHandle() {
+  if (!window.showSaveFilePicker) {
+    // Show link button only if API available — here it's not, hide indicator
+    return;
+  }
+  document.getElementById('linkFileBtn').style.display = '';
+  try {
+    const handle = await idbGet('main');
+    if (!handle) return;
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      fileHandle = handle;
+      await readFromFile();
+      updateStorageIndicator();
+    } else {
+      // Will re-request on next user gesture; store it so linkFile can re-use
+      fileHandle = handle;
+      updateStorageIndicator('pending');
+    }
+  } catch(e) { console.warn('Restore handle failed:', e); }
+}
+
+async function linkFile() {
+  if (!window.showSaveFilePicker) { toast('Nicht unterstützt in diesem Browser'); return; }
+  try {
+    // If we have a pending handle, try to re-use it (requests permission)
+    if (fileHandle) {
+      const perm = await fileHandle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') { await writeToFile(); updateStorageIndicator(); return; }
+    }
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'vacation-data.json',
+      types: [{ description: 'JSON-Datei', accept: { 'application/json': ['.json'] } }]
+    });
+    fileHandle = handle;
+    await idbPut('main', handle);
+    await writeToFile();
+    updateStorageIndicator();
+    toast('Datei verknüpft — wird ab jetzt automatisch gespeichert ✓');
+  } catch(e) { if (e.name !== 'AbortError') toast('Fehler: ' + e.message); }
+}
+
+async function writeToFile() {
+  if (!fileHandle) return;
+  try {
+    const perm = await fileHandle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return;
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(getAppData(), null, 2));
+    await writable.close();
+  } catch(e) { console.warn('Auto-save failed:', e); }
+}
+
+async function readFromFile() {
+  if (!fileHandle) return;
+  try {
+    const file = await fileHandle.getFile();
+    const data = JSON.parse(await file.text());
+    loadAppData(data);
+  } catch(e) { console.warn('Read from file failed:', e); }
+}
+
+function updateStorageIndicator(state) {
+  const dot   = document.querySelector('.storage-dot');
+  const label = document.getElementById('storageLabel');
+  if (state === 'pending') {
+    dot.className   = 'storage-dot local';
+    label.textContent = 'Klick "Datei verknüpfen"';
+  } else if (fileHandle) {
+    dot.className   = 'storage-dot file';
+    fileHandle.getFile().then(f => label.textContent = f.name).catch(() => {});
+  } else {
+    dot.className   = 'storage-dot local';
+    label.textContent = 'localStorage';
+  }
+}
+
+// ── Export ────────────────────────────────────────────────────────────────
+function exportData() {
+  const blob = new Blob([JSON.stringify(getAppData(), null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {
+    href: url, download: `vacation-data-${new Date().toISOString().slice(0,10)}.json`
+  });
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Exportiert ✓');
+}
+
+// ── Import (JSON) ─────────────────────────────────────────────────────────
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try {
+      loadAppData(JSON.parse(ev.target.result));
+      await writeToFile();
+      toast('Importiert ✓');
+    } catch(err) { toast('Fehler: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────
+function changeYear(delta) { currentYear += delta; render(); }
+
+function onStateChange() {
+  selectedState = document.getElementById('stateSelect').value;
+  try { localStorage.setItem(KEY_STATE, selectedState); } catch(e) {}
+  render();
+  writeToFile();
+}
+
+function onAnnualChange() {
+  const v = parseInt(document.getElementById('annualDays').value, 10);
+  if (!v || v < 1) return;
+  annualDays = v;
+  try { localStorage.setItem(KEY_ANNUAL, v); } catch(e) {}
+  render();
+  writeToFile();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+let _toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
